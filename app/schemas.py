@@ -18,3 +18,11 @@ class TaskResponse(BaseModel):
     description: str | None
     status: str
     priority: str 
+
+
+
+class TaskUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=1000)
+    status: Literal["pending", "in_progress", "completed"] | None = None
+    priority: Literal["low", "medium", "high"] | None = None
