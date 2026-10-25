@@ -29,7 +29,7 @@ A REST API for managing projects and tasks, built with **Python, FastAPI, SQLAlc
 ### 1. Clone the repository
 
 ```bash
-git clone <https://github.com/ShriyaYadavalli/taskflow-api.git>
+git clone https://github.com/ShriyaYadavalli/taskflow-api.git
 cd taskflow-api
 ```
 
