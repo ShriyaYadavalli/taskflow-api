@@ -1,10 +1,19 @@
+from typing import Literal
+
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import models
 from app.database import Base, engine, get_db
-from app.schemas import TaskCreate, TaskResponse, TaskUpdate
+from app.schemas import (
+    ProjectCreate,
+    ProjectResponse,
+    TaskCreate,
+    TaskResponse,
+    TaskUpdate,
+)
+
 
 # Create tables that don't exist yet.
 Base.metadata.create_all(bind=engine)
@@ -81,13 +90,22 @@ def update_task(
 
     updates = task_data.model_dump(exclude_unset=True)
 
+    if updates.get("project_id") is not None:
+        project = db.get(models.Project, updates["project_id"])
+
+        if project is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found",
+            )
+
     if any(
-        value is None and field != "description"
+        value is None and field not in {"description", "project_id"}
         for field, value in updates.items()
     ):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Only description may be set to null",
+            detail="Only description and project_id may be set to null",
         )
 
     for field, value in updates.items():
@@ -127,6 +145,15 @@ def create_task(
     task_data: TaskCreate,
     db: Session = Depends(get_db),
 ):
+    if task_data.project_id is not None:
+        project = db.get(models.Project, task_data.project_id)
+
+        if project is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found",
+            )
+    
     task = models.Task(**task_data.model_dump())
 
     db.add(task)
@@ -134,3 +161,49 @@ def create_task(
     db.refresh(task)
 
     return task
+
+
+@app.post(
+    "/projects",
+    response_model=ProjectResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_project(
+    project_data: ProjectCreate,
+    db: Session = Depends(get_db),
+):
+    project = models.Project(**project_data.model_dump())
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+    return project
+
+
+@app.get("/projects", response_model=list[ProjectResponse])
+def get_projects(db: Session = Depends(get_db)):
+    statement = select(models.Project).order_by(models.Project.id)
+    return db.scalars(statement).all()
+
+
+@app.get(
+    "/projects/{project_id}/tasks",
+    response_model=list[TaskResponse],
+)
+def get_project_tasks(
+    project_id: int,
+    db: Session = Depends(get_db),
+):
+    project = db.get(models.Project, project_id)
+
+    if project is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+
+    statement = (
+        select(models.Task)
+        .where(models.Task.project_id == project_id)
+        .order_by(models.Task.id)
+    )
+    return db.scalars(statement).all()
