@@ -1,4 +1,4 @@
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -23,8 +23,31 @@ def health_check():
 
 
 @app.get("/tasks", response_model=list[TaskResponse])
-def get_tasks(db: Session = Depends(get_db)):
-    statement = select(models.Task).order_by(models.Task.id)
+def get_tasks(
+    task_status: Literal["pending", "in_progress", "completed"] | None = Query(
+        default=None,
+        alias="status",
+    ),
+    priority: Literal["low", "medium", "high"] | None = None,
+    limit: int = Query(default=10, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
+    statement = select(models.Task)
+
+    if task_status is not None:
+        statement = statement.where(models.Task.status == task_status)
+
+    if priority is not None:
+        statement = statement.where(models.Task.priority == priority)
+
+    statement = (
+        statement
+        .order_by(models.Task.id)
+        .offset(offset)
+        .limit(limit)
+    )
+
     tasks = db.scalars(statement).all()
     return tasks
 
