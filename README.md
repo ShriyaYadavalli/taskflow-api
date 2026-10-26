@@ -24,6 +24,61 @@ A REST API for managing projects and tasks, built with **Python, FastAPI, SQLAlc
 - **Testing:** pytest
 - **Containerization:** Docker and Docker Compose
 
+## Run with Docker Hub
+
+You can run TaskFlow API using the prebuilt Docker image from Docker Hub without cloning the repository or building the image yourself.
+
+### 1. Pull the image
+
+```bash
+docker pull shriyayadavalli/taskflow-api:1.0
+```
+
+### 2. Start the container
+
+```bash
+docker run -d \
+  --name taskflow-api \
+  -p 8000:8000 \
+  -e DATABASE_URL=sqlite:////app/data/taskflow.db \
+  -v taskflow_data:/app/data \
+  shriyayadavalli/taskflow-api:1.0
+```
+
+### 3. Access the API
+
+Once the container is running, open:
+
+- **Interactive API documentation:** http://localhost:8000/docs
+- **Health check:** http://localhost:8000/health
+
+### 4. Manage the container
+
+Stop the container:
+
+```bash
+docker stop taskflow-api
+```
+
+Start it again:
+
+```bash
+docker start taskflow-api
+```
+
+Remove the container:
+
+```bash
+docker rm -f taskflow-api
+```
+
+**Notes:**
+- Docker must be installed and running.
+- The Docker Hub repository must be public for anyone to pull the image without signing in.
+- Each user gets a separate SQLite database in their own Docker volume. Your local database records are not included in the image.
+- The database persists when the container is stopped or removed, unless the named volume is deleted.
+
+
 ## Run Locally
 
 ### 1. Clone the repository
