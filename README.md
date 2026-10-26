@@ -1,6 +1,12 @@
 # TaskFlow API
 
-A REST API for managing projects and tasks, built with **Python, FastAPI, SQLAlchemy, SQLite, and Docker**.
+A RESTful API for managing projects and tasks, built with **Python, FastAPI, SQLAlchemy, SQLite, and Docker**. This project demonstrates backend development fundamentals, database relationships, request validation, automated testing, and containerization.
+
+## Project Links
+
+- **Source Code:** [GitHub Repository](https://github.com/ShriyaYadavalli/taskflow-api)
+- **Docker Image:** [Docker Hub](https://hub.docker.com/r/shriyayadavalli/taskflow-api)
+- **Interactive API Documentation:** `http://localhost:8000/docs` after starting the application.
 
 ## Features
 
@@ -12,29 +18,39 @@ A REST API for managing projects and tasks, built with **Python, FastAPI, SQLAlc
 - Handle missing resources with appropriate HTTP status codes.
 - Persist data using SQLite.
 - Run the application in Docker with Docker Compose.
-- Automated API tests using pytest and FastAPI's TestClient.
+- Store database data in a persistent Docker volume.
+- Run automated API tests using pytest and FastAPI's TestClient.
 
 ## Tech Stack
 
-- **Language:** Python
-- **API framework:** FastAPI
-- **Database:** SQLite
-- **ORM:** SQLAlchemy
-- **Validation:** Pydantic
-- **Testing:** pytest
-- **Containerization:** Docker and Docker Compose
+| Technology | Purpose |
+|---|---|
+| Python | Application programming language |
+| FastAPI | REST API framework |
+| SQLAlchemy | ORM and database interactions |
+| SQLite | Relational database |
+| Pydantic | Request validation and data schemas |
+| pytest | Automated testing |
+| Docker | Application containerization |
+| Docker Compose | Container configuration and execution |
 
-## Run with Docker Hub
+## Getting Started
 
-You can run TaskFlow API using the prebuilt Docker image from Docker Hub without cloning the repository or building the image yourself.
+Choose one of the following options to run the application.
 
-### 1. Pull the image
+### Option 1: Run with Docker Hub
+
+Use the prebuilt Docker image to run TaskFlow API without cloning the repository or building the image yourself.
+
+**Prerequisites:** Docker installed and running.
+
+#### 1. Pull the image
 
 ```bash
 docker pull shriyayadavalli/taskflow-api:1.0
 ```
 
-### 2. Start the container
+#### 2. Start the container
 
 ```bash
 docker run -d \
@@ -45,14 +61,14 @@ docker run -d \
   shriyayadavalli/taskflow-api:1.0
 ```
 
-### 3. Access the API
+#### 3. Access the API
 
 Once the container is running, open:
 
 - **Interactive API documentation:** http://localhost:8000/docs
 - **Health check:** http://localhost:8000/health
 
-### 4. Manage the container
+#### 4. Manage the container
 
 Stop the container:
 
@@ -73,22 +89,66 @@ docker rm -f taskflow-api
 ```
 
 **Notes:**
-- Docker must be installed and running.
-- The Docker Hub repository must be public for anyone to pull the image without signing in.
-- Each user gets a separate SQLite database in their own Docker volume. Your local database records are not included in the image.
-- The database persists when the container is stopped or removed, unless the named volume is deleted.
 
+- The Docker Hub repository must be public for users to pull the image without signing in.
+- Each user gets a separate database in their own Docker volume. Your local database records are not included in the image.
+- Database data persists when the container is stopped or removed, provided the named volume is not deleted.
+- If port `8000` is already in use, replace `-p 8000:8000` with `-p 8001:8000` and access the API at `http://localhost:8001/docs`.
 
-## Run Locally
+### Option 2: Run with Docker Compose
 
-### 1. Clone the repository
+Use Docker Compose to build and run the application from the source code.
+
+**Prerequisites:** Docker Desktop installed and running.
+
+#### 1. Clone the repository
 
 ```bash
 git clone https://github.com/ShriyaYadavalli/taskflow-api.git
 cd taskflow-api
 ```
 
-### 2. Create and activate a virtual environment
+#### 2. Build and start the application
+
+```bash
+docker compose up --build
+```
+
+#### 3. Access the API
+
+- **Interactive API documentation:** http://localhost:8000/docs
+- **Health check:** http://localhost:8000/health
+
+#### 4. Stop the application
+
+```bash
+docker compose down
+```
+
+Docker Compose stores the database in a named volume, allowing data to persist when containers are stopped and recreated. The local database and Docker database are separate.
+
+To remove the containers and the database volume, run:
+
+```bash
+docker compose down -v
+```
+
+**Warning:** The `-v` option deletes the Compose-managed database volume and its stored data.
+
+### Option 3: Run Locally with Python
+
+Run the application directly on your computer without Docker.
+
+**Prerequisites:** Python installed.
+
+#### 1. Clone the repository
+
+```bash
+git clone https://github.com/ShriyaYadavalli/taskflow-api.git
+cd taskflow-api
+```
+
+#### 2. Create and activate a virtual environment
 
 On macOS or Linux:
 
@@ -97,13 +157,20 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### 3. Install dependencies
+On Windows PowerShell:
 
-```bash
-pip install -r requirements.txt
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
 ```
 
-### 4. Start the API
+#### 3. Install dependencies
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+#### 4. Start the API
 
 ```bash
 python -m uvicorn app.main:app --reload
@@ -113,25 +180,7 @@ Open the interactive API documentation at:
 
 http://127.0.0.1:8000/docs
 
-## Run with Docker
-
-Make sure Docker Desktop is running, then execute:
-
-```bash
-docker compose up --build
-```
-
-The API will be available at:
-
-http://localhost:8000/docs
-
-To stop the containers:
-
-```bash
-docker compose down
-```
-
-The SQLite database used by Docker is stored in a named Docker volume so that data can persist when containers are stopped and recreated. The local database and Docker database are separate.
+The local application uses `taskflow.db` in the working directory by default.
 
 ## API Endpoints
 
@@ -148,7 +197,14 @@ The SQLite database used by Docker is stored in a named Docker volume so that da
 | GET | `/projects` | List projects |
 | GET | `/projects/{project_id}/tasks` | List tasks associated with a project |
 
-### Example: Create a task
+### Supported Task Values
+
+| Field | Accepted values |
+|---|---|
+| `status` | `pending`, `in_progress`, `completed` |
+| `priority` | `low`, `medium`, `high` |
+
+### Example: Create a Task
 
 Send a `POST` request to `/tasks` with this JSON body:
 
@@ -161,15 +217,24 @@ Send a `POST` request to `/tasks` with this JSON body:
 }
 ```
 
-### Example: Filter and paginate tasks
+### Example: Filter and Paginate Tasks
 
-```text
+Retrieve pending, high-priority tasks, returning up to 10 results:
+
+```http
 GET /tasks?status=pending&priority=high&limit=10&offset=0
 ```
 
-### Example: Update a task
+- `status` filters tasks by status.
+- `priority` filters tasks by priority.
+- `limit` controls the maximum number of results.
+- `offset` specifies how many results to skip.
 
-Send a `PATCH` request to `/tasks/1`:
+All filters and pagination parameters are optional.
+
+### Example: Update a Task
+
+Send a `PATCH` request to `/tasks/1` with only the fields you want to change:
 
 ```json
 {
@@ -177,7 +242,7 @@ Send a `PATCH` request to `/tasks/1`:
 }
 ```
 
-### Example: Create a project
+### Example: Create a Project
 
 Send a `POST` request to `/projects`:
 
@@ -188,15 +253,25 @@ Send a `POST` request to `/projects`:
 }
 ```
 
+A task can optionally reference a project through its `project_id`.
+
 ## Run Tests
 
-With your virtual environment activated:
+Activate your virtual environment if you're running locally, then execute:
 
 ```bash
 python -m pytest -v
 ```
 
-The test suite covers task creation, validation, filtering, pagination, project relationships, and missing-task responses.
+The test suite covers:
+
+- Task creation and retrieval.
+- Request validation.
+- Filtering and pagination.
+- Project creation and task relationships.
+- Responses for missing tasks.
+
+Tests use a separate temporary SQLite database to avoid modifying the application's normal database.
 
 ## Project Structure
 
@@ -218,19 +293,38 @@ taskflow-api/
 └── README.md
 ```
 
+| File | Responsibility |
+|---|---|
+| `main.py` | API routes and request handling |
+| `database.py` | Database engine, sessions, and dependencies |
+| `models.py` | SQLAlchemy database models and relationships |
+| `schemas.py` | Pydantic schemas and request validation |
+| `test_tasks.py` | Automated API tests |
+| `Dockerfile` | Instructions for building the Docker image |
+| `compose.yaml` | Docker service, environment, and volume configuration |
+| `requirements.txt` | Python dependencies |
+
 ## What I Learned
 
 - Designing RESTful API endpoints with FastAPI.
-- Defining database models and relationships with SQLAlchemy.
-- Validating API inputs and handling errors.
-- Implementing filtering and pagination.
-- Writing automated tests for API behavior.
-- Containerizing an application with Docker.
-- Persisting SQLite data with Docker volumes.
+- Modeling relational data and relationships with SQLAlchemy.
+- Validating requests with Pydantic.
+- Implementing filtering and pagination with SQLAlchemy queries.
+- Handling errors and HTTP status codes.
+- Writing automated tests with pytest and FastAPI's TestClient.
+- Managing configuration through environment variables.
+- Containerizing an application with Docker and Docker Compose.
+- Persisting database data using Docker volumes.
+- Managing source code with Git and GitHub.
 
 ## Future Improvements
 
 - Add user authentication and authorization.
-- Add database migrations with Alembic.
-- Add more integration tests.
+- Introduce database migrations with Alembic.
+- Expand integration and edge-case testing.
 - Deploy the API to a cloud platform.
+- Add continuous integration to run tests automatically.
+
+---
+
+**Built as a backend development portfolio project to practice API design, relational databases, testing, and containerization.**
