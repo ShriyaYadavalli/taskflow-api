@@ -23,3 +23,9 @@ venv/
 
 # macOS
 .DS_Store
+
+# Local database backups
+*.db.backup
+
+# Exported Docker images
+*.tar
