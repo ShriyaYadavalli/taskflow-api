@@ -10,8 +10,29 @@ from app.queue import (
 
 
 def process_message(message: dict) -> None:
-    """Process one message from the TaskFlow queue."""
-    print(f"Processing message: {message}", flush=True)
+    """Process a queued TaskFlow job."""
+    job_type = message.get("job_type")
+    payload = message.get("payload", {})
+
+    if job_type == "send_notification":
+        recipient = payload.get("recipient")
+        subject = payload.get("subject", "TaskFlow notification")
+        body = payload.get(
+            "message",
+            "You have a new notification from TaskFlow.",
+        )
+
+        if not recipient:
+            raise ValueError("Notification recipient is required")
+
+        print("----- SIMULATED EMAIL -----", flush=True)
+        print(f"To: {recipient}", flush=True)
+        print(f"Subject: {subject}", flush=True)
+        print(f"Body: {body}", flush=True)
+        print("----- EMAIL NOT SENT -----", flush=True)
+
+    else:
+        print(f"Processing message: {message}", flush=True)
 
 
 def main() -> None:
