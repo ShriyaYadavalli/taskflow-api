@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import models
-from app.database import Base, engine, get_db
+from app.database import get_db
 from app.schemas import (
     ProjectCreate,
     ProjectResponse,
@@ -15,8 +15,6 @@ from app.schemas import (
 )
 
 
-# Create tables that don't exist yet.
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="TaskFlow API")
 
