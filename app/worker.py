@@ -6,6 +6,7 @@ from app.queue import (
     RABBITMQ_USER,
     RABBITMQ_PASSWORD,
     QUEUE_NAME,
+    declare_queues,
 )
 
 
@@ -50,10 +51,7 @@ def main() -> None:
     connection = pika.BlockingConnection(parameters)
     channel = connection.channel()
 
-    channel.queue_declare(
-        queue=QUEUE_NAME,
-        durable=True,
-    )
+    declare_queues(channel)
 
     channel.basic_qos(prefetch_count=1)
 
