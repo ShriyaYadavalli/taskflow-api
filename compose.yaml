@@ -5,8 +5,39 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: sqlite:////app/data/taskflow.db
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: taskflow
+      RABBITMQ_PASSWORD: localdevpassword
     volumes:
       - taskflow_data:/app/data
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  worker:
+    build: .
+    command: ["python", "-m", "app.worker"]
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: taskflow
+      RABBITMQ_PASSWORD: localdevpassword
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: taskflow
+      RABBITMQ_DEFAULT_PASS: localdevpassword
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   taskflow_data:
