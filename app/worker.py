@@ -1,4 +1,5 @@
 import json
+
 import pika
 
 from app.queue import (
@@ -6,8 +7,14 @@ from app.queue import (
     RABBITMQ_USER,
     RABBITMQ_PASSWORD,
     QUEUE_NAME,
+    RETRY_QUEUE,
+    MAX_RETRIES,
     declare_queues,
 )
+
+
+class PermanentJobError(ValueError):
+    """An error that retrying will not fix."""
 
 
 def process_message(message: dict) -> None:
@@ -24,7 +31,7 @@ def process_message(message: dict) -> None:
         )
 
         if not recipient:
-            raise ValueError("Notification recipient is required")
+            raise PermanentJobError("Notification recipient is required")
 
         print("----- SIMULATED EMAIL -----", flush=True)
         print(f"To: {recipient}", flush=True)
@@ -34,6 +41,71 @@ def process_message(message: dict) -> None:
 
     else:
         print(f"Processing message: {message}", flush=True)
+
+
+def handle_message(ch, method, properties, body) -> None:
+    """Process one RabbitMQ delivery and decide whether to ack, retry, or reject."""
+    try:
+        message = json.loads(body.decode("utf-8"))
+        process_message(message)
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+
+    except PermanentJobError as error:
+        print(f"Permanent job failure: {error}", flush=True)
+        ch.basic_nack(
+            delivery_tag=method.delivery_tag,
+            requeue=False,
+        )
+
+    except Exception as error:
+        headers = (properties.headers or {}) if properties else {}
+        retry_count = headers.get("x-retry-count", 0)
+
+        if retry_count < MAX_RETRIES:
+            next_retry_count = retry_count + 1
+
+            try:
+                ch.basic_publish(
+                    exchange="",
+                    routing_key=RETRY_QUEUE,
+                    body=body,
+                    properties=pika.BasicProperties(
+                        delivery_mode=2,
+                        content_type="application/json",
+                        headers={
+                            **headers,
+                            "x-retry-count": next_retry_count,
+                        },
+                    ),
+                )
+
+                ch.basic_ack(delivery_tag=method.delivery_tag)
+                print(
+                    f"Temporary failure: {error}. "
+                    f"Retry {next_retry_count}/{MAX_RETRIES} scheduled.",
+                    flush=True,
+                )
+
+            except Exception as publish_error:
+                print(
+                    f"Could not schedule retry: {publish_error}",
+                    flush=True,
+                )
+                ch.basic_nack(
+                    delivery_tag=method.delivery_tag,
+                    requeue=True,
+                )
+
+        else:
+            print(
+                f"Retry limit reached: {error}. "
+                "Sending job to dead-letter queue.",
+                flush=True,
+            )
+            ch.basic_nack(
+                delivery_tag=method.delivery_tag,
+                requeue=False,
+            )
 
 
 def main() -> None:
@@ -52,24 +124,11 @@ def main() -> None:
     channel = connection.channel()
 
     declare_queues(channel)
-
     channel.basic_qos(prefetch_count=1)
-
-    def callback(ch, method, properties, body):
-        try:
-            message = json.loads(body.decode("utf-8"))
-            process_message(message)
-            ch.basic_ack(delivery_tag=method.delivery_tag)
-        except Exception as error:
-            print(f"Message processing failed: {error}", flush=True)
-            ch.basic_nack(
-                delivery_tag=method.delivery_tag,
-                requeue=False,
-            )
 
     channel.basic_consume(
         queue=QUEUE_NAME,
-        on_message_callback=callback,
+        on_message_callback=handle_message,
         auto_ack=False,
     )
 

@@ -12,12 +12,17 @@ RABBITMQ_PASSWORD = os.getenv(
 )
 
 QUEUE_NAME = "taskflow-jobs"
+RETRY_QUEUE = "taskflow-jobs-retry"
 DEAD_LETTER_QUEUE = "taskflow-jobs-dead"
 DEAD_LETTER_EXCHANGE = "taskflow-dead-letter"
 
+RETRY_DELAY_MS = 5000
+MAX_RETRIES = 3
+
 
 def declare_queues(channel) -> None:
-    """Create the main queue and its dead-letter destination."""
+    """Create the main, retry, and dead-letter queues."""
+
     channel.exchange_declare(
         exchange=DEAD_LETTER_EXCHANGE,
         exchange_type="direct",
@@ -33,6 +38,16 @@ def declare_queues(channel) -> None:
         queue=DEAD_LETTER_QUEUE,
         exchange=DEAD_LETTER_EXCHANGE,
         routing_key=DEAD_LETTER_QUEUE,
+    )
+
+    channel.queue_declare(
+        queue=RETRY_QUEUE,
+        durable=True,
+        arguments={
+            "x-message-ttl": RETRY_DELAY_MS,
+            "x-dead-letter-exchange": "",
+            "x-dead-letter-routing-key": QUEUE_NAME,
+        },
     )
 
     channel.queue_declare(
