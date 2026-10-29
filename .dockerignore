@@ -13,3 +13,5 @@ taskflow.db
 *.sqlite
 *.sqlite3
 tests/
+*.db.backup
+*.tar

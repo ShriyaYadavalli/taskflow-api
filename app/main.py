@@ -1,11 +1,14 @@
 from typing import Literal
+import pika
+from pydantic import BaseModel, Field
 
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import models
-from app.database import Base, engine, get_db
+from app.queue import publish_task_message
+from app.database import get_db
 from app.schemas import (
     ProjectCreate,
     ProjectResponse,
@@ -15,10 +18,11 @@ from app.schemas import (
 )
 
 
-# Create tables that don't exist yet.
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="TaskFlow API")
+class JobRequest(BaseModel):
+    job_type: str = Field(min_length=1, max_length=100)
+    payload: dict[str, object] = Field(default_factory=dict)
 
 
 @app.get("/")
@@ -29,6 +33,24 @@ def root():
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
+
+
+@app.post("/jobs", status_code=status.HTTP_202_ACCEPTED)
+def create_job(job_data: JobRequest):
+    message = job_data.model_dump()
+
+    try:
+        publish_task_message(message)
+    except (pika.exceptions.AMQPError, OSError):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Job queue is currently unavailable",
+        )
+
+    return {
+        "status": "queued",
+        "job": message,
+    }
 
 
 @app.get("/tasks", response_model=list[TaskResponse])
