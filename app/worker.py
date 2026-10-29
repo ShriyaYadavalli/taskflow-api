@@ -1,7 +1,10 @@
 import json
 
 import pika
+from sqlalchemy.exc import SQLAlchemyError
 
+from app.database import SessionLocal
+from app.models import Task
 from app.queue import (
     RABBITMQ_HOST,
     RABBITMQ_USER,
@@ -22,16 +25,69 @@ def process_message(message: dict) -> None:
     job_type = message.get("job_type")
     payload = message.get("payload", {})
 
-    if job_type == "send_notification":
+    if job_type == "process_task":
+        task_id = payload.get("task_id")
+
+        if not isinstance(task_id, int) or isinstance(task_id, bool):
+            raise PermanentJobError("A valid task_id is required")
+
+        db = SessionLocal()
+
+        try:
+            task = db.get(Task, task_id)
+
+            if task is None:
+                raise PermanentJobError(
+                    f"Task {task_id} does not exist"
+                )
+
+            if task.status == "completed":
+                print(
+                    f"Task {task_id} is already completed.",
+                    flush=True,
+                )
+                return
+
+            task.status = "in_progress"
+            db.commit()
+
+            print(
+                f"Task {task_id} is now in progress.",
+                flush=True,
+            )
+
+            # Demonstration processing step.
+            # Replace this with the actual task operation later.
+            task.status = "completed"
+            db.commit()
+
+            print(
+                f"Task {task_id} completed successfully.",
+                flush=True,
+            )
+
+        except SQLAlchemyError:
+            db.rollback()
+            raise
+
+        finally:
+            db.close()
+
+    elif job_type == "send_notification":
         recipient = payload.get("recipient")
-        subject = payload.get("subject", "TaskFlow notification")
+        subject = payload.get(
+            "subject",
+            "TaskFlow notification",
+        )
         body = payload.get(
             "message",
             "You have a new notification from TaskFlow.",
         )
 
         if not recipient:
-            raise PermanentJobError("Notification recipient is required")
+            raise PermanentJobError(
+                "Notification recipient is required"
+            )
 
         print("----- SIMULATED EMAIL -----", flush=True)
         print(f"To: {recipient}", flush=True)
