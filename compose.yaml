@@ -2,12 +2,12 @@ services:
   api:
     build: .
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       DATABASE_URL: sqlite:////app/data/taskflow.db
       RABBITMQ_HOST: rabbitmq
-      RABBITMQ_USER: taskflow
-      RABBITMQ_PASSWORD: localdevpassword
+      RABBITMQ_USER: ${RABBITMQ_USER:?Set RABBITMQ_USER in .env}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
     volumes:
       - taskflow_data:/app/data
     depends_on:
@@ -19,20 +19,17 @@ services:
     command: ["python", "-m", "app.worker"]
     environment:
       RABBITMQ_HOST: rabbitmq
-      RABBITMQ_USER: taskflow
-      RABBITMQ_PASSWORD: localdevpassword
+      RABBITMQ_USER: ${RABBITMQ_USER:?Set RABBITMQ_USER in .env}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
     depends_on:
       rabbitmq:
         condition: service_healthy
 
   rabbitmq:
     image: rabbitmq:4-management
-    ports:
-      - "5672:5672"
-      - "15672:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: taskflow
-      RABBITMQ_DEFAULT_PASS: localdevpassword
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?Set RABBITMQ_USER in .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
